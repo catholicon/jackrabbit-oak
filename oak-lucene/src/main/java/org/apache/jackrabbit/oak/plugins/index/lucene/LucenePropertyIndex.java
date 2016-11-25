@@ -34,7 +34,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.google.common.base.Predicate;
 import com.google.common.collect.AbstractIterator;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Sets;
@@ -1401,10 +1403,10 @@ public class LucenePropertyIndex implements AdvancedQueryIndex, QueryIndex, Nati
         Query ret;
         IndexingRule indexingRule = pr.indexingRule;
         //Expand the query on fulltext field
-        if (FieldNames.FULLTEXT.equals(fieldName) &&
-                !indexingRule.getNodeScopeAnalyzedProps().isEmpty()) {
+        Iterable<PropertyDefinition> expandForPropDefs = getRelevantFulltextPropDefs(fieldName, indexingRule);
+        if (expandForPropDefs != null) {
             BooleanQuery in = new BooleanQuery();
-            for (PropertyDefinition pd : indexingRule.getNodeScopeAnalyzedProps()) {
+            for (PropertyDefinition pd : expandForPropDefs) {
                 Query q = tokenToQuery(text, FieldNames.createAnalyzedFieldName(pd.name), analyzer);
                 q.setBoost(pd.boost);
                 in.add(q, BooleanClause.Occur.SHOULD);
@@ -1449,6 +1451,26 @@ public class LucenePropertyIndex implements AdvancedQueryIndex, QueryIndex, Nati
         } catch (QueryNodeException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    static Iterable<PropertyDefinition> getRelevantFulltextPropDefs(String fieldName, IndexingRule indexingRule) {
+        Iterable<PropertyDefinition> ret = null;
+        if (fieldName != null &&
+                (FieldNames.FULLTEXT.equals(fieldName) || fieldName.startsWith(FieldNames.FULLTEXT_RELATIVE_NODE)) &&
+                !indexingRule.getNodeScopeAnalyzedProps().isEmpty()) {
+            ret = indexingRule.getNodeScopeAnalyzedProps();
+            if (fieldName.startsWith(FieldNames.FULLTEXT_RELATIVE_NODE)) {
+                final String aggNodeRelPath = fieldName.substring(FieldNames.FULLTEXT_RELATIVE_NODE.length());
+                ret = Iterables.filter(ret, new Predicate<PropertyDefinition>() {
+                    @Override
+                    public boolean apply(@Nullable PropertyDefinition input) {
+                        return aggNodeRelPath.equals(input.parentPath);
+                    }
+                });
+            }
+        }
+
+        return ret;
     }
 
     /**

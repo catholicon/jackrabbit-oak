@@ -160,10 +160,19 @@ public class TestUtil {
         }
 
         AggregatorBuilder newRuleWithName(String primaryType,
-                                          List<String> includes){
+                                          List<String> includes) {
+            return newRuleWithName(primaryType, includes, false);
+        }
+        AggregatorBuilder newRuleWithName(String primaryType,
+                                          List<String> includes,
+                                          boolean isRelativeNode){
             Tree agg = aggs.addChild(primaryType);
             for (String include : includes){
-                agg.addChild(unique("include")).setProperty(LuceneIndexConstants.AGG_PATH, include);
+                Tree includeTree = agg.addChild(unique("include"));
+                includeTree.setProperty(LuceneIndexConstants.AGG_PATH, include);
+                if (isRelativeNode) {
+                    includeTree.setProperty(LuceneIndexConstants.AGG_RELATIVE_NODE, true);
+                }
             }
             return this;
         }

@@ -22,6 +22,7 @@ package org.apache.jackrabbit.oak.plugins.index.lucene;
 import javax.annotation.CheckForNull;
 import javax.jcr.PropertyType;
 
+import com.google.common.base.Joiner;
 import org.apache.jackrabbit.oak.api.PropertyState;
 import org.apache.jackrabbit.oak.api.Type;
 import org.apache.jackrabbit.oak.commons.PathUtils;
@@ -31,6 +32,8 @@ import org.apache.jackrabbit.oak.plugins.index.lucene.util.LuceneIndexHelper;
 import org.apache.jackrabbit.oak.spi.state.NodeState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Arrays;
 
 import static com.google.common.collect.ImmutableList.copyOf;
 import static com.google.common.collect.Iterables.toArray;
@@ -93,6 +96,8 @@ class PropertyDefinition {
 
     final boolean excludeFromAggregate;
 
+    final String parentPath;
+
     /**
      * Property name excluding the relativePath. For regular expression based definition
      * its set to null
@@ -144,6 +149,7 @@ class PropertyDefinition {
         this.excludeFromAggregate = getOptionalValueIfIndexed(defn, LuceneIndexConstants.PROP_EXCLUDE_FROM_AGGREGATE, false);
         this.nonRelativeName = determineNonRelativeName();
         this.ancestors = computeAncestors(name);
+        this.parentPath = Joiner.on("/").join(this.ancestors);
         this.facet = getOptionalValueIfIndexed(defn, LuceneIndexConstants.PROP_FACETS, false);
         this.function = FunctionIndexProcessor.convertToPolishNotation(
                 getOptionalValue(defn, LuceneIndexConstants.PROP_FUNCTION, null));

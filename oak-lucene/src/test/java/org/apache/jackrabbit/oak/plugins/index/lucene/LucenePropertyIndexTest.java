@@ -1616,6 +1616,71 @@ public class LucenePropertyIndexTest extends AbstractQueryTest {
     }
 
     @Test
+    public void boostPropUnderFullAggregateNode() throws Exception {
+        // Index Definition
+        Tree index = root.getTree("/");
+        Tree indexDefn = createTestIndexNode(index, LuceneIndexConstants.TYPE_LUCENE);
+        useV2(indexDefn);
+
+        //Add aggregate for metadata
+        newNodeAggregator(indexDefn).newRuleWithName("oak:Unstructured", Lists.newArrayList("content"), true);
+        newNodeAggregator(indexDefn).newRuleWithName("oak:Unstructured", Lists.newArrayList("content/metadata"), true);
+
+        //boosting prop defs for some props under ./content/metadata
+        addPropertyDefn(indexDefn, "content/metadata/title1", 3.0);
+        addPropertyDefn(indexDefn, "content/metadata/title2", 2.0);
+        addPropertyDefn(indexDefn, "content/title3", 1.0).removeProperty(LuceneIndexConstants.FIELD_BOOST);
+
+        root.commit();
+
+        // create test data
+        Tree test = root.getTree("/").addChild("test");
+
+        //nodes for checking under ./content/metadata
+        usc(test, "a").addChild("content").addChild("metadata").setProperty("title1", "foo");
+        usc(test, "b").addChild("content").addChild("metadata").setProperty("non-title", "foo");
+        usc(test, "c").addChild("content").addChild("metadata").setProperty("title2", "foo");
+
+        //nodes for checking under ./content without the prop index
+        usc(test, "d").addChild("content").setProperty("non-title", "bar");
+        usc(test, "e").addChild("content").setProperty("title1", "bar");
+        usc(test, "f").addChild("content").addChild("metadata").setProperty("title1", "bar");//This should not show up
+
+        //nodes for checking under ./content including the prop index
+        usc(test, "g").addChild("content").setProperty("title1", "baz1");
+        usc(test, "h").addChild("content").setProperty("title3", "baz1");
+        usc(test, "i").addChild("content").setProperty("title3", "baz2");
+        usc(test, "j").addChild("content").setProperty("title1", "baz2");
+
+
+
+        root.commit();
+
+        // query under ./content/metadata
+        // which should be /test/a (boost = 3.0), /test/c(boost = 2.0), /test/b (due to aggregated index)
+        String queryString = "//element(*, oak:Unstructured)[jcr:contains(content/metadata, 'foo' )]";
+        assertOrderedQuery(queryString, asList("/test/a", "/test/c", "/test/b"), XPATH, true);
+
+        // query under ./content ... no specific order
+        queryString = "//element(*, oak:Unstructured)[jcr:contains(content, 'bar' )]";
+        assertQuery(queryString, XPATH, asList("/test/d", "/test/e"));
+
+        // query under ./content
+        //Although, prop index (./content/title3) doesn't have explicit boost, but explicit prop index should
+        //set an order
+        queryString = "//element(*, oak:Unstructured)[jcr:contains(content, 'baz1' )]";
+        assertOrderedQuery(queryString, asList("/test/h", "/test/g"), XPATH, true);
+        queryString = "//element(*, oak:Unstructured)[jcr:contains(content, 'baz2' )]";
+        assertOrderedQuery(queryString, asList("/test/i", "/test/j"), XPATH, true);
+
+        // query under ./. All nodeScoped once should show up. We'd smoke test here as other
+        // test cover the functionality anyway
+        // which should be /test/a (boost = 3.0), /test/c(boost = 2.0), /test/b (due to aggregated index)
+        queryString = "//element(*, oak:Unstructured)[jcr:contains(., 'foo' )]";
+        assertOrderedQuery(queryString, asList("/test/a", "/test/c", "/test/b"), XPATH, true);
+    }
+
+    @Test
     public void indexTimeFieldBoostAndRelativeProperty() throws Exception {
         // Index Definition
         Tree index = root.getTree("/");
