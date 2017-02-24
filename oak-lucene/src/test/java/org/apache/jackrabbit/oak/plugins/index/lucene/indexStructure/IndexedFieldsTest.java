@@ -76,7 +76,8 @@ public class IndexedFieldsTest extends AbstractQueryTest {
             IndexDefinitionBuilder.PropertyRule augmentPropRule(IndexDefinitionBuilder.PropertyRule pr) {
                 return pr.propertyIndex();
             }
-        });
+        },
+        "[foo]='test string'");
     }
 
     @Test
@@ -86,7 +87,8 @@ public class IndexedFieldsTest extends AbstractQueryTest {
             IndexDefinitionBuilder.PropertyRule augmentPropRule(IndexDefinitionBuilder.PropertyRule pr) {
                 return pr.analyzed();
             }
-        });
+        },
+        "contains([foo], 'test string')");
     }
 
     @Test
@@ -96,7 +98,8 @@ public class IndexedFieldsTest extends AbstractQueryTest {
             IndexDefinitionBuilder.PropertyRule augmentPropRule(IndexDefinitionBuilder.PropertyRule pr) {
                 return pr.nodeScopeIndex();
             }
-        });
+        },
+                "contains(*, 'test string')");
     }
 
     @Test
@@ -110,7 +113,8 @@ public class IndexedFieldsTest extends AbstractQueryTest {
             IndexDefinitionBuilder.PropertyRule augmentPropRule(IndexDefinitionBuilder.PropertyRule pr) {
                 return pr.propertyIndex();
             }
-        });
+        },
+                "[foo]='test string' AND ISDESCENDANTNODE('/test/test1')");
     }
 //
 //    @Test
@@ -123,10 +127,11 @@ public class IndexedFieldsTest extends AbstractQueryTest {
 //        });
 //    }
 
-    private void indexStructure(String nodeScopedIndexName, AugmentIndexDef aid) throws Exception {
+    private void indexStructure(String indexName, AugmentIndexDef aid, String cond) throws Exception {
         Tree oakIndex = root.getTree("/oak:index");
-        createIndex(oakIndex, nodeScopedIndexName,aid);
-        dumpIndex(nodeStore.getRoot(), nodeScopedIndexName);
+        createIndex(oakIndex, indexName,aid);
+        dumpIndex(nodeStore.getRoot(), indexName);
+        explainQuery(cond, indexName);
     }
 
     private void dumpIndex(NodeState root, String indexName) throws IOException {
@@ -137,6 +142,21 @@ public class IndexedFieldsTest extends AbstractQueryTest {
         System.out.println("Index");
         System.out.println("-----");
         LuceneIndexParser.getIndexStructure(root, indexName).dump();
+    }
+
+    private void explainQuery(String cond, String indexName) {
+        System.out.println("-------------------------");
+        String query = "SELECT * FROM [nt:base] WHERE " + cond;
+        System.out.println("Query-> " + query);
+
+        String explainOut = executeQuery("explain " + query, SQL2).get(0);
+        String startPosMarker = indexName + ") ";
+        int startIdx = explainOut.indexOf(startPosMarker) + startPosMarker.length();
+        int endIdx = explainOut.indexOf(" ft:(");
+        endIdx = (endIdx == -1)?explainOut.indexOf('\n'):endIdx;
+        explainOut = explainOut.substring(startIdx, endIdx);
+
+        System.out.println("LuceneQuery-> " + explainOut);
     }
 
     private String createIndex(Tree oakIndex, String indexName, AugmentIndexDef aid) throws CommitFailedException {
