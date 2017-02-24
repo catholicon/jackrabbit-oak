@@ -112,6 +112,16 @@ public class IndexedFieldsTest extends AbstractQueryTest {
             }
         });
     }
+//
+//    @Test
+//    public void aggregate() throws Exception {
+//        indexStructure("aggregate",  new AugmentIndexDef() {
+//            @Override
+//            void addIncludes(IndexDefinitionBuilder.AggregateRule aggRule) {
+//                aggRule.include("*");
+//            }
+//        });
+//    }
 
     private void indexStructure(String nodeScopedIndexName, AugmentIndexDef aid) throws Exception {
         Tree oakIndex = root.getTree("/oak:index");
@@ -137,6 +147,7 @@ public class IndexedFieldsTest extends AbstractQueryTest {
         aid.augmentPropRule(rule.property("foo"));
         aid.augmentPropRule(rule.property("bar", "testChild/bar"));
         aid.augmentPropRule(rule.property("allBar", "testChild/ba.*", true));
+//        aid.addIncludes(idb.aggregateRule("nt:base"));
 
         idxBuilder.noAsync().build(indexTree);
         root.commit();
@@ -150,5 +161,7 @@ public class IndexedFieldsTest extends AbstractQueryTest {
         IndexDefinitionBuilder.PropertyRule augmentPropRule(IndexDefinitionBuilder.PropertyRule pr) {
             return pr;
         }
+//        void addIncludes(IndexDefinitionBuilder.AggregateRule aggRule) {
+//        }
     }
 }
