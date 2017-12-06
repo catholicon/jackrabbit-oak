@@ -45,11 +45,14 @@ public class ResultSizeTest extends AbstractQueryTest {
         luceneV1.setProperty(LuceneIndexConstants.COMPAT_MODE, IndexFormatVersion.V1.getVersion());
         session.save();
 
-        doTestResultSize(true);
-        
-        luceneV1.remove();
-        luceneGlobal.setProperty("type", "lucene");
-        session.save();
+        try {
+            doTestResultSize(true);
+        } finally {
+            luceneV1.remove();
+            luceneGlobal.setProperty("type", "lucene");
+            luceneGlobal.setProperty("reindex", true);
+            session.save();
+        }
     }
     
     private void doTestResultSize(boolean aggregateAtQueryTime) throws RepositoryException {
@@ -105,7 +108,7 @@ public class ResultSizeTest extends AbstractQueryTest {
         it = q.execute().getNodes();
         assertEquals(90, it.getSize());
         
-        
+
         // default (secure) case
         // manually disabled
         System.setProperty("oak.fastQuerySize", "false");
